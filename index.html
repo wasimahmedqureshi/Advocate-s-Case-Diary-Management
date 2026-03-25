@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>CaseFlow - Advocate's Case Diary Management</title>
+    <!-- Tailwind CSS + Font Awesome + Google Fonts -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <!-- jsPDF and autoTable for PDF Export -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+    <style>
+        * { font-family: 'Inter', sans-serif; }
+        body { background: #f4f7fc; }
+        .card-hover:hover { transform: translateY(-2px); transition: all 0.2s ease; box-shadow: 0 12px 20px -12px rgba(0,0,0,0.15); }
+        .modal-transition { transition: opacity 0.2s ease, visibility 0.2s; }
+        input, select, textarea:focus { outline: none; ring: 2px solid #3b82f6; }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
+        ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+    </style>
+</head>
+<body class="antialiased">
+
+    <!-- Main Container -->
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        <!-- Header Section -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+            <div class="flex items-center gap-3">
+                <div class="bg-indigo-600 p-2 rounded-xl shadow-md">
+                    <i class="fas fa-gavel text-white text-2xl"></i>
+                </div>
+                <div>
+                    <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Case Diary Manager</h1>
+                    <p class="text-slate-500 text-sm">Advocate's complete litigation tracker</p>
+                </div>
+            </div>
+            <button id="openAddModalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-2 font-medium">
+                <i class="fas fa-plus-circle"></i> Register New Case
+            </button>
+        </div>
+
+        <!-- Filter Card: Cause List by Hearing Date + PDF Export -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8 card-hover">
+            <div class="flex flex-wrap items-end justify-between gap-4">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="far fa-calendar-alt mr-1"></i> Hearing Date (Cause List)</label>
+                    <input type="date" id="filterHearingDate" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-300 transition">
+                </div>
+                <div class="flex gap-3">
+                    <button id="applyFilterBtn" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl shadow flex items-center gap-2 transition"><i class="fas fa-search"></i> Show Cases</button>
+                    <button id="exportPdfBtn" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl shadow flex items-center gap-2 transition"><i class="fas fa-file-pdf"></i> Export PDF</button>
+                    <button id="resetFilterBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2.5 rounded-xl transition"><i class="fas fa-undo-alt"></i> Reset</button>
+                </div>
+            </div>
+            <p class="text-xs text-slate-400 mt-3"><i class="fas fa-info-circle"></i> Select hearing date to generate cause list / export PDF with advocate & party details</p>
+        </div>
+
+        <!-- Cases Table Card -->
+        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gradient-to-r from-indigo-50 to-blue-50">
+                        <tr>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Case No.</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Manual No.</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Case Type</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Appellant</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Respondent</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Hearing Date</th>
+                            <th class="px-4 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody id="casesTableBody" class="bg-white divide-y divide-gray-100">
+                        <tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cases...</td></tr>
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- MODAL: Add/Edit Case (Reusable) -->
+    <div id="caseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 modal-transition hidden">
+        <div class="bg-white rounded-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
+                <h3 id="modalTitle" class="text-xl font-bold text-slate-800"><i class="fas fa-balance-scale mr-2 text-indigo-500"></i> Add New Case</h3>
+                <button id="closeModalBtn" class="text-gray-400 hover:text-gray-600 text-2xl">&times;</button>
+            </div>
+            <div class="p-6">
+                <form id="caseForm">
+                    <input type="hidden" id="caseId" value="">
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
+                        <!-- Left Column -->
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Case No. *</label>
+                            <input type="text" id="caseNo" required class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300 focus:ring-indigo-400">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Manual Case No.</label>
+                            <input type="text" id="manualCaseNo" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Institution Date</label>
+                            <input type="date" id="institutionDate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Address / Court</label>
+                            <input type="text" id="address" placeholder="Court / Location" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Case Type</label>
+                            <input type="text" id="caseType" placeholder="Civil/Criminal/Writ" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Act</label>
+                            <input type="text" id="act" placeholder="IPC, CrPC etc" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Case Purpose</label>
+                            <input type="text" id="casePurpose" placeholder="Hearing / Final Disposal" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Section</label>
+                            <input type="text" id="section" placeholder="Sec. 302, 138" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Appellant Name *</label>
+                            <input type="text" id="appellantName" required class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Respondent Name *</label>
+                            <input type="text" id="respondentName" required class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Hearing Date</label>
+                            <input type="date" id="hearingDate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700">Appellant Advocate</label>
+                            <input type="text" id="appellantAdvocate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                        <div class="md:col-span-2">
+                            <label class="block text-sm font-medium text-gray-700">Respondent Advocate</label>
+                            <input type="text" id="respondentAdvocate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                        </div>
+                    </div>
+                    <div class="mt-8 flex justify-end gap-3 border-t pt-5">
+                        <button type="button" id="cancelModalBtn" class="px-5 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
+                        <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition"><i class="fas fa-save mr-1"></i> Save Case</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // API BASE URL (same origin)
+        const API_BASE = '/api/cases';
+        let allCases = [];      // store current data list for filtering
+
+        // DOM Elements
+        const casesBody = document.getElementById('casesTableBody');
+        const filterDateInput = document.getElementById('filterHearingDate');
+        const applyFilterBtn = document.getElementById('applyFilterBtn');
+        const resetFilterBtn = document.getElementById('resetFilterBtn');
+        const exportPdfBtn = document.getElementById('exportPdfBtn');
+        const openAddModal = document.getElementById('openAddModalBtn');
+        const modal = document.getElementById('caseModal');
+        const closeModal = document.getElementById('closeModalBtn');
+        const cancelModal = document.getElementById('cancelModalBtn');
+        const caseForm = document.getElementById('caseForm');
+        const modalTitle = document.getElementById('modalTitle');
+        const caseIdInput = document.getElementById('caseId');
+
+        // Helper: fetch all cases and render
+        async function fetchAndRenderCases() {
+            try {
+                const res = await fetch(API_BASE);
+                if (!res.ok) throw new Error('Failed to fetch');
+                const data = await res.json();
+                allCases = data;
+                renderTable(allCases);
+            } catch (err) {
+                console.error(err);
+                casesBody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-red-500"><i class="fas fa-exclamation-triangle"></i> Error loading cases. Make sure server is running.</td></tr>`;
+            }
+        }
+
+        // Render table with given case array
+        function renderTable(casesArray) {
+            if (!casesArray.length) {
+                casesBody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400"><i class="far fa-folder-open"></i> No cases found.</td></tr>`;
+                return;
+            }
+            casesBody.innerHTML = casesArray.map(c => `
+                <tr class="hover:bg-gray-50 transition">
+                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(c.caseNo || '-')}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHtml(c.manualCaseNo || '-')}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHtml(c.caseType || '-')}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">${escapeHtml(c.appellantName || '-')}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${escapeHtml(c.respondentName || '-')}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-sm">${c.hearingDate ? formatDate(c.hearingDate) : '<span class="text-gray-400">Not set</span>'}</td>
+                    <td class="px-4 py-3 whitespace-nowrap text-center">
+                        <button onclick="editCase(${c.id})" class="text-indigo-600 hover:text-indigo-800 mr-3 transition" title="Edit"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteCase(${c.id})" class="text-red-500 hover:text-red-700 transition" title="Delete"><i class="fas fa-trash-alt"></i></button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        // Utility: simple escape
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;});}
+        function formatDate(dateStr) { if(!dateStr) return ''; return new Date(dateStr).toLocaleDateString('en-IN'); }
+
+        // Add / Update Case
+        caseForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            const formData = {
+                caseNo: document.getElementById('caseNo').value.trim(),
+                manualCaseNo: document.getElementById('manualCaseNo').value.trim(),
+                institutionDate: document.getElementById('institutionDate').value,
+                address: document.getElementById('address').value,
+                caseType: document.getElementById('caseType').value,
+                act: document.getElementById('act').value,
+                casePurpose: document.getElementById('casePurpose').value,
+                section: document.getElementById('section').value,
+                appellantName: document.getElementById('appellantName').value.trim(),
+                respondentName: document.getElementById('respondentName').value.trim(),
+                hearingDate: document.getElementById('hearingDate').value,
+                appellantAdvocate: document.getElementById('appellantAdvocate').value,
+                respondentAdvocate: document.getElementById('respondentAdvocate').value
+            };
+            if(!formData.caseNo || !formData.appellantName || !formData.respondentName) {
+                alert("Case No., Appellant Name & Respondent Name are mandatory!");
+                return;
+            }
+            const id = caseIdInput.value;
+            let url = API_BASE;
+            let method = 'POST';
+            if(id) {
+                url = `${API_BASE}/${id}`;
+                method = 'PUT';
+            }
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(formData)
+                });
+                if(res.ok) {
+                    closeModalFunc();
+                    fetchAndRenderCases();
+                } else {
+                    const err = await res.json();
+                    alert("Error: " + (err.error || "Something went wrong"));
+                }
+            } catch(err) { alert("Server error: " + err.message); }
+        });
+
+        // Edit case
+        window.editCase = async (id) => {
+            try {
+                const res = await fetch(`${API_BASE}/${id}`);
+                if(!res.ok) throw new Error();
+                const c = await res.json();
+                // populate form
+                document.getElementById('caseId').value = c.id;
+                document.getElementById('caseNo').value = c.caseNo || '';
+                document.getElementById('manualCaseNo').value = c.manualCaseNo || '';
+                document.getElementById('institutionDate').value = c.institutionDate || '';
+                document.getElementById('address').value = c.address || '';
+                document.getElementById('caseType').value = c.caseType || '';
+                document.getElementById('act').value = c.act || '';
+                document.getElementById('casePurpose').value = c.casePurpose || '';
+                document.getElementById('section').value = c.section || '';
+                document.getElementById('appellantName').value = c.appellantName || '';
+                document.getElementById('respondentName').value = c.respondentName || '';
+                document.getElementById('hearingDate').value = c.hearingDate || '';
+                document.getElementById('appellantAdvocate').value = c.appellantAdvocate || '';
+                document.getElementById('respondentAdvocate').value = c.respondentAdvocate || '';
+                modalTitle.innerHTML = '<i class="fas fa-edit mr-2 text-indigo-500"></i> Edit Case Details';
+                modal.classList.remove('hidden');
+            } catch(err) { alert("Could not fetch case details"); }
+        };
+
+        // Delete case
+        window.deleteCase = async (id) => {
+            if(!confirm("Permanently delete this case? This action cannot be undone.")) return;
+            try {
+                const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
+                if(res.ok) {
+                    fetchAndRenderCases();
+                } else {
+                    alert("Failed to delete");
+                }
+            } catch(err) { alert(err.message); }
+        };
+
+        // Filter by hearing date
+        applyFilterBtn.addEventListener('click', () => {
+            const selectedDate = filterDateInput.value;
+            if(!selectedDate) {
+                renderTable(allCases);
+                return;
+            }
+            const filtered = allCases.filter(c => c.hearingDate === selectedDate);
+            renderTable(filtered);
+        });
+
+        resetFilterBtn.addEventListener('click', () => {
+            filterDateInput.value = '';
+            renderTable(allCases);
+        });
+
+        // PDF Export based on currently displayed cases (respect filter)
+        exportPdfBtn.addEventListener('click', () => {
+            const selectedDate = filterDateInput.value;
+            let casesToExport = [];
+            if(selectedDate) {
+                casesToExport = allCases.filter(c => c.hearingDate === selectedDate);
+            } else {
+                casesToExport = allCases;
+            }
+            if(casesToExport.length === 0) {
+                alert("No cases available for the selected hearing date or empty list.");
+                return;
+            }
+            generateCauseListPDF(casesToExport, selectedDate);
+        });
+
+        function generateCauseListPDF(cases, hearingDateFilter) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            const title = hearingDateFilter ? `Cause List - Hearing Date: ${new Date(hearingDateFilter).toLocaleDateString('en-IN')}` : "Complete Cause List - All Cases";
+            doc.setFontSize(18);
+            doc.setTextColor(40, 55, 90);
+            doc.text("CASE DIARY MANAGEMENT SYSTEM", 14, 15);
+            doc.setFontSize(12);
+            doc.setTextColor(80, 80, 100);
+            doc.text(title, 14, 25);
+            doc.setFontSize(9);
+            doc.text(`Generated on: ${new Date().toLocaleString()} | Advocate Portfolio`, 14, 32);
+            
+            // Table columns
+            const headers = [["Case No", "Manual No", "Case Type", "Appellant", "Respondent", "Hearing Date", "App. Advocate", "Resp. Advocate", "Purpose/Section"]];
+            const rows = cases.map(c => [
+                c.caseNo || '-', c.manualCaseNo || '-', c.caseType || '-', c.appellantName || '-',
+                c.respondentName || '-', c.hearingDate ? formatDate(c.hearingDate) : '-', 
+                c.appellantAdvocate || '-', c.respondentAdvocate || '-', 
+                `${c.casePurpose || ''} ${c.section ? `[Sec ${c.section}]` : ''}`.trim() || '-'
+            ]);
+            doc.autoTable({
+                head: headers,
+                body: rows,
+                startY: 38,
+                theme: 'striped',
+                headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 25 }, 2: { cellWidth: 25 }, 3: { cellWidth: 30 }, 4: { cellWidth: 30 }, 5: { cellWidth: 25 }, 6: { cellWidth: 30 }, 7: { cellWidth: 30 }, 8: { cellWidth: 35 } },
+                margin: { left: 10, right: 10 },
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' }
+            });
+            doc.save(`Cause_List_${hearingDateFilter || 'All_Cases'}.pdf`);
+        }
+
+        // Modal Open (Add new)
+        function openAddCaseModal() {
+            caseForm.reset();
+            caseIdInput.value = '';
+            modalTitle.innerHTML = '<i class="fas fa-plus-circle mr-2 text-indigo-500"></i> Register New Case';
+            document.getElementById('caseNo').value = '';
+            modal.classList.remove('hidden');
+        }
+        function closeModalFunc() {
+            modal.classList.add('hidden');
+        }
+        openAddModal.addEventListener('click', openAddCaseModal);
+        closeModal.addEventListener('click', closeModalFunc);
+        cancelModal.addEventListener('click', closeModalFunc);
+        // Click outside close: optional
+        window.addEventListener('click', (e) => { if(e.target === modal) closeModalFunc(); });
+
+        // Initial load
+        fetchAndRenderCases();
+    </script>
+</body>
+</html>
