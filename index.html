@@ -34,7 +34,7 @@
                 </div>
                 <div>
                     <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Case Diary Manager</h1>
-                    <p class="text-slate-500 text-sm">Advocate's complete litigation tracker</p>
+                    <p class="text-slate-500 text-sm">Advocate's complete litigation tracker (offline storage)</p>
                 </div>
             </div>
             <button id="openAddModalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-2 font-medium">
@@ -156,45 +156,85 @@
     </div>
 
     <script>
-        // API BASE URL (same origin)
-        const API_BASE = '/api/cases';
-        let allCases = [];      // store current data list for filtering
-
-        // DOM Elements
-        const casesBody = document.getElementById('casesTableBody');
-        const filterDateInput = document.getElementById('filterHearingDate');
-        const applyFilterBtn = document.getElementById('applyFilterBtn');
-        const resetFilterBtn = document.getElementById('resetFilterBtn');
-        const exportPdfBtn = document.getElementById('exportPdfBtn');
-        const openAddModal = document.getElementById('openAddModalBtn');
-        const modal = document.getElementById('caseModal');
-        const closeModal = document.getElementById('closeModalBtn');
-        const cancelModal = document.getElementById('cancelModalBtn');
-        const caseForm = document.getElementById('caseForm');
-        const modalTitle = document.getElementById('modalTitle');
-        const caseIdInput = document.getElementById('caseId');
-
-        // Helper: fetch all cases and render
-        async function fetchAndRenderCases() {
-            try {
-                const res = await fetch(API_BASE);
-                if (!res.ok) throw new Error('Failed to fetch');
-                const data = await res.json();
-                allCases = data;
-                renderTable(allCases);
-            } catch (err) {
-                console.error(err);
-                casesBody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-red-500"><i class="fas fa-exclamation-triangle"></i> Error loading cases. Make sure server is running.</td></tr>`;
+        // ---------- localStorage CRUD Operations ----------
+        const STORAGE_KEY = "case_diary_data";
+        
+        // Load cases from localStorage, initialize with sample if empty
+        function loadCases() {
+            const stored = localStorage.getItem(STORAGE_KEY);
+            if (stored) {
+                return JSON.parse(stored);
             }
+            // Sample data to demonstrate functionality
+            const sampleCases = [
+                {
+                    id: Date.now() + 1,
+                    caseNo: "C-101/2024",
+                    manualCaseNo: "24/2024",
+                    institutionDate: "2024-01-15",
+                    address: "District Court, Delhi",
+                    caseType: "Civil",
+                    act: "Code of Civil Procedure",
+                    casePurpose: "Final Hearing",
+                    section: "Order 39",
+                    appellantName: "Suraj Singh",
+                    respondentName: "Ramesh Gupta",
+                    hearingDate: "2025-04-10",
+                    appellantAdvocate: "Adv. Mehta",
+                    respondentAdvocate: "Adv. Sharma"
+                },
+                {
+                    id: Date.now() + 2,
+                    caseNo: "C-202/2024",
+                    manualCaseNo: "45/2024",
+                    institutionDate: "2024-02-20",
+                    address: "High Court, Mumbai",
+                    caseType: "Criminal",
+                    act: "IPC",
+                    casePurpose: "Arguments",
+                    section: "302",
+                    appellantName: "State of Maharashtra",
+                    respondentName: "Akash Yadav",
+                    hearingDate: "2025-04-15",
+                    appellantAdvocate: "Public Prosecutor",
+                    respondentAdvocate: "Adv. Verma"
+                }
+            ];
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleCases));
+            return sampleCases;
         }
 
-        // Render table with given case array
+        let allCases = loadCases();
+
+        function saveCases() {
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(allCases));
+        }
+
+        // Helper functions
+        function formatDate(dateStr) {
+            if (!dateStr) return '';
+            const d = new Date(dateStr);
+            return d.toLocaleDateString('en-IN');
+        }
+
+        function escapeHtml(str) {
+            if (!str) return '';
+            return str.replace(/[&<>]/g, function(m) {
+                if (m === '&') return '&amp;';
+                if (m === '<') return '&lt;';
+                if (m === '>') return '&gt;';
+                return m;
+            });
+        }
+
+        // Render table with given array
         function renderTable(casesArray) {
+            const tbody = document.getElementById('casesTableBody');
             if (!casesArray.length) {
-                casesBody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400"><i class="far fa-folder-open"></i> No cases found.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400"><i class="far fa-folder-open"></i> No cases found.</td></tr>`;
                 return;
             }
-            casesBody.innerHTML = casesArray.map(c => `
+            tbody.innerHTML = casesArray.map(c => `
                 <tr class="hover:bg-gray-50 transition">
                     <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(c.caseNo || '-')}</td>
                     <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHtml(c.manualCaseNo || '-')}</td>
@@ -210,14 +250,10 @@
             `).join('');
         }
 
-        // Utility: simple escape
-        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, function(m){if(m==='&') return '&amp;'; if(m==='<') return '&lt;'; if(m==='>') return '&gt;'; return m;});}
-        function formatDate(dateStr) { if(!dateStr) return ''; return new Date(dateStr).toLocaleDateString('en-IN'); }
-
-        // Add / Update Case
-        caseForm.addEventListener('submit', async (e) => {
-            e.preventDefault();
-            const formData = {
+        // Add / Update case
+        function saveCaseFromForm() {
+            const id = document.getElementById('caseId').value;
+            const caseData = {
                 caseNo: document.getElementById('caseNo').value.trim(),
                 manualCaseNo: document.getElementById('manualCaseNo').value.trim(),
                 institutionDate: document.getElementById('institutionDate').value,
@@ -232,108 +268,94 @@
                 appellantAdvocate: document.getElementById('appellantAdvocate').value,
                 respondentAdvocate: document.getElementById('respondentAdvocate').value
             };
-            if(!formData.caseNo || !formData.appellantName || !formData.respondentName) {
+            if (!caseData.caseNo || !caseData.appellantName || !caseData.respondentName) {
                 alert("Case No., Appellant Name & Respondent Name are mandatory!");
-                return;
+                return false;
             }
-            const id = caseIdInput.value;
-            let url = API_BASE;
-            let method = 'POST';
-            if(id) {
-                url = `${API_BASE}/${id}`;
-                method = 'PUT';
-            }
-            try {
-                const res = await fetch(url, {
-                    method: method,
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify(formData)
-                });
-                if(res.ok) {
-                    closeModalFunc();
-                    fetchAndRenderCases();
+            if (id) {
+                // Update existing
+                const index = allCases.findIndex(c => c.id == id);
+                if (index !== -1) {
+                    caseData.id = parseInt(id);
+                    allCases[index] = caseData;
                 } else {
-                    const err = await res.json();
-                    alert("Error: " + (err.error || "Something went wrong"));
+                    alert("Case not found for update");
+                    return false;
                 }
-            } catch(err) { alert("Server error: " + err.message); }
-        });
-
-        // Edit case
-        window.editCase = async (id) => {
-            try {
-                const res = await fetch(`${API_BASE}/${id}`);
-                if(!res.ok) throw new Error();
-                const c = await res.json();
-                // populate form
-                document.getElementById('caseId').value = c.id;
-                document.getElementById('caseNo').value = c.caseNo || '';
-                document.getElementById('manualCaseNo').value = c.manualCaseNo || '';
-                document.getElementById('institutionDate').value = c.institutionDate || '';
-                document.getElementById('address').value = c.address || '';
-                document.getElementById('caseType').value = c.caseType || '';
-                document.getElementById('act').value = c.act || '';
-                document.getElementById('casePurpose').value = c.casePurpose || '';
-                document.getElementById('section').value = c.section || '';
-                document.getElementById('appellantName').value = c.appellantName || '';
-                document.getElementById('respondentName').value = c.respondentName || '';
-                document.getElementById('hearingDate').value = c.hearingDate || '';
-                document.getElementById('appellantAdvocate').value = c.appellantAdvocate || '';
-                document.getElementById('respondentAdvocate').value = c.respondentAdvocate || '';
-                modalTitle.innerHTML = '<i class="fas fa-edit mr-2 text-indigo-500"></i> Edit Case Details';
-                modal.classList.remove('hidden');
-            } catch(err) { alert("Could not fetch case details"); }
-        };
+            } else {
+                // Add new
+                caseData.id = Date.now();
+                allCases.push(caseData);
+            }
+            saveCases();
+            return true;
+        }
 
         // Delete case
-        window.deleteCase = async (id) => {
-            if(!confirm("Permanently delete this case? This action cannot be undone.")) return;
-            try {
-                const res = await fetch(`${API_BASE}/${id}`, { method: 'DELETE' });
-                if(res.ok) {
-                    fetchAndRenderCases();
-                } else {
-                    alert("Failed to delete");
-                }
-            } catch(err) { alert(err.message); }
+        window.deleteCase = (id) => {
+            if (!confirm("Permanently delete this case? This action cannot be undone.")) return;
+            allCases = allCases.filter(c => c.id !== id);
+            saveCases();
+            renderTable(allCases);
+            // If filter is active, re-apply filter after deletion
+            const filterDate = document.getElementById('filterHearingDate').value;
+            if (filterDate) {
+                const filtered = allCases.filter(c => c.hearingDate === filterDate);
+                renderTable(filtered);
+            } else {
+                renderTable(allCases);
+            }
         };
 
-        // Filter by hearing date
-        applyFilterBtn.addEventListener('click', () => {
-            const selectedDate = filterDateInput.value;
-            if(!selectedDate) {
+        // Edit case
+        window.editCase = (id) => {
+            const caseObj = allCases.find(c => c.id === id);
+            if (!caseObj) return;
+            document.getElementById('caseId').value = caseObj.id;
+            document.getElementById('caseNo').value = caseObj.caseNo || '';
+            document.getElementById('manualCaseNo').value = caseObj.manualCaseNo || '';
+            document.getElementById('institutionDate').value = caseObj.institutionDate || '';
+            document.getElementById('address').value = caseObj.address || '';
+            document.getElementById('caseType').value = caseObj.caseType || '';
+            document.getElementById('act').value = caseObj.act || '';
+            document.getElementById('casePurpose').value = caseObj.casePurpose || '';
+            document.getElementById('section').value = caseObj.section || '';
+            document.getElementById('appellantName').value = caseObj.appellantName || '';
+            document.getElementById('respondentName').value = caseObj.respondentName || '';
+            document.getElementById('hearingDate').value = caseObj.hearingDate || '';
+            document.getElementById('appellantAdvocate').value = caseObj.appellantAdvocate || '';
+            document.getElementById('respondentAdvocate').value = caseObj.respondentAdvocate || '';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit mr-2 text-indigo-500"></i> Edit Case Details';
+            document.getElementById('caseModal').classList.remove('hidden');
+        };
+
+        // Filter & render
+        function applyFilter() {
+            const selectedDate = document.getElementById('filterHearingDate').value;
+            if (!selectedDate) {
                 renderTable(allCases);
-                return;
+            } else {
+                const filtered = allCases.filter(c => c.hearingDate === selectedDate);
+                renderTable(filtered);
             }
-            const filtered = allCases.filter(c => c.hearingDate === selectedDate);
-            renderTable(filtered);
-        });
+        }
 
-        resetFilterBtn.addEventListener('click', () => {
-            filterDateInput.value = '';
-            renderTable(allCases);
-        });
-
-        // PDF Export based on currently displayed cases (respect filter)
-        exportPdfBtn.addEventListener('click', () => {
-            const selectedDate = filterDateInput.value;
+        // PDF Export (based on currently displayed cases)
+        function generatePDF() {
+            const selectedDate = document.getElementById('filterHearingDate').value;
             let casesToExport = [];
-            if(selectedDate) {
+            if (selectedDate) {
                 casesToExport = allCases.filter(c => c.hearingDate === selectedDate);
             } else {
                 casesToExport = allCases;
             }
-            if(casesToExport.length === 0) {
+            if (casesToExport.length === 0) {
                 alert("No cases available for the selected hearing date or empty list.");
                 return;
             }
-            generateCauseListPDF(casesToExport, selectedDate);
-        });
-
-        function generateCauseListPDF(cases, hearingDateFilter) {
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const title = hearingDateFilter ? `Cause List - Hearing Date: ${new Date(hearingDateFilter).toLocaleDateString('en-IN')}` : "Complete Cause List - All Cases";
+            const title = selectedDate ? `Cause List - Hearing Date: ${new Date(selectedDate).toLocaleDateString('en-IN')}` : "Complete Cause List - All Cases";
             doc.setFontSize(18);
             doc.setTextColor(40, 55, 90);
             doc.text("CASE DIARY MANAGEMENT SYSTEM", 14, 15);
@@ -343,9 +365,8 @@
             doc.setFontSize(9);
             doc.text(`Generated on: ${new Date().toLocaleString()} | Advocate Portfolio`, 14, 32);
             
-            // Table columns
             const headers = [["Case No", "Manual No", "Case Type", "Appellant", "Respondent", "Hearing Date", "App. Advocate", "Resp. Advocate", "Purpose/Section"]];
-            const rows = cases.map(c => [
+            const rows = casesToExport.map(c => [
                 c.caseNo || '-', c.manualCaseNo || '-', c.caseType || '-', c.appellantName || '-',
                 c.respondentName || '-', c.hearingDate ? formatDate(c.hearingDate) : '-', 
                 c.appellantAdvocate || '-', c.respondentAdvocate || '-', 
@@ -361,28 +382,53 @@
                 margin: { left: 10, right: 10 },
                 styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' }
             });
-            doc.save(`Cause_List_${hearingDateFilter || 'All_Cases'}.pdf`);
+            doc.save(`Cause_List_${selectedDate || 'All_Cases'}.pdf`);
         }
 
-        // Modal Open (Add new)
-        function openAddCaseModal() {
-            caseForm.reset();
-            caseIdInput.value = '';
-            modalTitle.innerHTML = '<i class="fas fa-plus-circle mr-2 text-indigo-500"></i> Register New Case';
-            document.getElementById('caseNo').value = '';
-            modal.classList.remove('hidden');
+        // Modal handlers
+        function openAddModal() {
+            document.getElementById('caseForm').reset();
+            document.getElementById('caseId').value = '';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle mr-2 text-indigo-500"></i> Register New Case';
+            document.getElementById('caseModal').classList.remove('hidden');
         }
-        function closeModalFunc() {
-            modal.classList.add('hidden');
+        function closeModal() {
+            document.getElementById('caseModal').classList.add('hidden');
         }
-        openAddModal.addEventListener('click', openAddCaseModal);
-        closeModal.addEventListener('click', closeModalFunc);
-        cancelModal.addEventListener('click', closeModalFunc);
-        // Click outside close: optional
-        window.addEventListener('click', (e) => { if(e.target === modal) closeModalFunc(); });
 
-        // Initial load
-        fetchAndRenderCases();
+        // Event listeners
+        document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
+        document.getElementById('closeModalBtn').addEventListener('click', closeModal);
+        document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
+        document.getElementById('applyFilterBtn').addEventListener('click', applyFilter);
+        document.getElementById('resetFilterBtn').addEventListener('click', () => {
+            document.getElementById('filterHearingDate').value = '';
+            renderTable(allCases);
+        });
+        document.getElementById('exportPdfBtn').addEventListener('click', generatePDF);
+        document.getElementById('caseForm').addEventListener('submit', (e) => {
+            e.preventDefault();
+            if (saveCaseFromForm()) {
+                closeModal();
+                // Re-render respecting current filter
+                const filterDate = document.getElementById('filterHearingDate').value;
+                if (filterDate) {
+                    const filtered = allCases.filter(c => c.hearingDate === filterDate);
+                    renderTable(filtered);
+                } else {
+                    renderTable(allCases);
+                }
+            }
+        });
+
+        // Click outside modal to close
+        window.addEventListener('click', (e) => {
+            const modal = document.getElementById('caseModal');
+            if (e.target === modal) closeModal();
+        });
+
+        // Initial render
+        renderTable(allCases);
     </script>
 </body>
 </html>
