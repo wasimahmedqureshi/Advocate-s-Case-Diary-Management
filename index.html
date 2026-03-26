@@ -3,38 +3,41 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
-    <title>CaseFlow - Advocate's Case Diary Management</title>
-    <!-- Tailwind CSS + Font Awesome + Google Fonts -->
+    <title>CaseFlow Pro - Advocate's Complete Case Management</title>
+    <!-- Tailwind CSS + Font Awesome + Google Fonts + Chart.js -->
     <script src="https://cdn.tailwindcss.com"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link href="https://fonts.googleapis.com/css2?family=Inter:opsz,wght@14..32,300;14..32,400;14..32,500;14..32,600;14..32,700&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
     <!-- jsPDF and autoTable for PDF Export -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
     <style>
         * { font-family: 'Inter', sans-serif; }
-        body { background: #f4f7fc; }
-        .card-hover:hover { transform: translateY(-2px); transition: all 0.2s ease; box-shadow: 0 12px 20px -12px rgba(0,0,0,0.15); }
+        body { background: #f0f2f5; }
+        .card-hover:hover { transform: translateY(-3px); transition: all 0.25s ease; box-shadow: 0 20px 25px -12px rgba(0,0,0,0.1); }
         .modal-transition { transition: opacity 0.2s ease, visibility 0.2s; }
         input, select, textarea:focus { outline: none; ring: 2px solid #3b82f6; }
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: #e2e8f0; border-radius: 10px; }
         ::-webkit-scrollbar-thumb { background: #94a3b8; border-radius: 10px; }
+        .stat-card { background: white; border-radius: 1rem; padding: 1rem; box-shadow: 0 1px 3px rgba(0,0,0,0.05); transition: all 0.2s; }
+        .stat-card:hover { box-shadow: 0 10px 15px -3px rgba(0,0,0,0.1); }
     </style>
 </head>
 <body class="antialiased">
 
     <!-- Main Container -->
-    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <!-- Header Section -->
-        <div class="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+        <!-- Header -->
+        <div class="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
             <div class="flex items-center gap-3">
-                <div class="bg-indigo-600 p-2 rounded-xl shadow-md">
+                <div class="bg-indigo-700 p-2 rounded-xl shadow-md">
                     <i class="fas fa-gavel text-white text-2xl"></i>
                 </div>
                 <div>
-                    <h1 class="text-3xl font-bold text-slate-800 tracking-tight">Case Diary Manager</h1>
-                    <p class="text-slate-500 text-sm">Advocate's complete litigation tracker (offline storage)</p>
+                    <h1 class="text-3xl font-bold text-slate-800 tracking-tight">CaseFlow Pro</h1>
+                    <p class="text-slate-500 text-sm">Complete Advocate Case Diary & Analytics</p>
                 </div>
             </div>
             <button id="openAddModalBtn" class="bg-indigo-600 hover:bg-indigo-700 text-white px-5 py-2.5 rounded-xl shadow-md transition flex items-center gap-2 font-medium">
@@ -42,46 +45,109 @@
             </button>
         </div>
 
-        <!-- Filter Card: Cause List by Hearing Date + PDF Export -->
-        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-8 card-hover">
-            <div class="flex flex-wrap items-end justify-between gap-4">
-                <div class="flex-1 min-w-[200px]">
-                    <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="far fa-calendar-alt mr-1"></i> Hearing Date (Cause List)</label>
-                    <input type="date" id="filterHearingDate" class="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-300 transition">
-                </div>
-                <div class="flex gap-3">
-                    <button id="applyFilterBtn" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl shadow flex items-center gap-2 transition"><i class="fas fa-search"></i> Show Cases</button>
-                    <button id="exportPdfBtn" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl shadow flex items-center gap-2 transition"><i class="fas fa-file-pdf"></i> Export PDF</button>
-                    <button id="resetFilterBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2.5 rounded-xl transition"><i class="fas fa-undo-alt"></i> Reset</button>
+        <!-- Dashboard Cards -->
+        <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 mb-8">
+            <div class="stat-card card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Total Cases</p>
+                        <p id="totalCasesCount" class="text-2xl font-bold text-gray-800">0</p>
+                    </div>
+                    <i class="fas fa-folder-open text-indigo-400 text-3xl"></i>
                 </div>
             </div>
-            <p class="text-xs text-slate-400 mt-3"><i class="fas fa-info-circle"></i> Select hearing date to generate cause list / export PDF with advocate & party details</p>
+            <div class="stat-card card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Pending Hearings</p>
+                        <p id="pendingHearingsCount" class="text-2xl font-bold text-amber-600">0</p>
+                    </div>
+                    <i class="fas fa-calendar-week text-amber-400 text-3xl"></i>
+                </div>
+            </div>
+            <div class="stat-card card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">Case Types</p>
+                        <p id="caseTypesCount" class="text-2xl font-bold text-emerald-600">0</p>
+                    </div>
+                    <i class="fas fa-tags text-emerald-400 text-3xl"></i>
+                </div>
+            </div>
+            <div class="stat-card card-hover">
+                <div class="flex items-center justify-between">
+                    <div>
+                        <p class="text-gray-500 text-sm">This Month New</p>
+                        <p id="thisMonthNew" class="text-2xl font-bold text-blue-600">0</p>
+                    </div>
+                    <i class="fas fa-chart-line text-blue-400 text-3xl"></i>
+                </div>
+            </div>
         </div>
 
-        <!-- Cases Table Card -->
-        <div class="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
+        <!-- Chart & Monthly Report Section -->
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+            <div class="lg:col-span-2 bg-white rounded-2xl shadow p-4">
+                <h3 class="text-lg font-semibold mb-2">Case Type Distribution</h3>
+                <canvas id="caseTypeChart" height="200"></canvas>
+            </div>
+            <div class="bg-white rounded-2xl shadow p-4">
+                <h3 class="text-lg font-semibold mb-3">Monthly Report</h3>
+                <div class="space-y-3">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700">Select Month & Year</label>
+                        <input type="month" id="reportMonth" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                    </div>
+                    <button id="generateMonthlyReportBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> Download Monthly Report (PDF)</button>
+                    <button id="exportExcelBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"><i class="fas fa-file-excel"></i> Export All Cases (CSV)</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Search + Filter Row -->
+        <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
+            <div class="flex flex-wrap gap-3 items-end">
+                <div class="flex-1 min-w-[200px]">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="fas fa-search"></i> Search (Case No, Party, Advocate)</label>
+                    <input type="text" id="globalSearch" placeholder="Type to search..." class="w-full border border-gray-300 rounded-xl px-4 py-2.5 focus:ring-2 focus:ring-indigo-300">
+                </div>
+                <div class="w-48">
+                    <label class="block text-sm font-semibold text-gray-700 mb-1"><i class="far fa-calendar-alt"></i> Hearing Date Filter</label>
+                    <input type="date" id="filterHearingDate" class="w-full border border-gray-300 rounded-xl px-4 py-2.5">
+                </div>
+                <div>
+                    <button id="applyFilterBtn" class="bg-slate-800 hover:bg-slate-900 text-white px-5 py-2.5 rounded-xl shadow flex items-center gap-2"><i class="fas fa-filter"></i> Apply</button>
+                </div>
+                <div>
+                    <button id="resetFilterBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2.5 rounded-xl"><i class="fas fa-undo-alt"></i> Reset</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Cases Table -->
+        <div class="bg-white rounded-2xl shadow-lg overflow-hidden">
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gradient-to-r from-indigo-50 to-blue-50">
                         <tr>
-                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Case No.</th>
-                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Manual No.</th>
-                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Case Type</th>
-                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Appellant</th>
-                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Respondent</th>
-                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase tracking-wider">Hearing Date</th>
-                            <th class="px-4 py-4 text-center text-xs font-semibold text-gray-700 uppercase tracking-wider">Actions</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase">Case No.</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase">Manual No.</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase">Case Type</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase">Appellant</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase">Respondent</th>
+                            <th class="px-4 py-4 text-left text-xs font-semibold text-gray-700 uppercase">Hearing Date</th>
+                            <th class="px-4 py-4 text-center text-xs font-semibold text-gray-700 uppercase">Actions</th>
                         </tr>
                     </thead>
                     <tbody id="casesTableBody" class="bg-white divide-y divide-gray-100">
-                        <tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i> Loading cases...</td></tr>
+                        <tr><td colspan="7" class="text-center py-12 text-gray-400"><i class="fas fa-spinner fa-spin mr-2"></i> Loading...</td></tr>
                     </tbody>
                 </table>
             </div>
         </div>
     </div>
 
-    <!-- MODAL: Add/Edit Case (Reusable) -->
+    <!-- MODAL: Add/Edit Case -->
     <div id="caseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 modal-transition hidden">
         <div class="bg-white rounded-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
@@ -92,63 +158,23 @@
                 <form id="caseForm">
                     <input type="hidden" id="caseId" value="">
                     <div class="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                        <!-- Left Column -->
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Case No. *</label>
-                            <input type="text" id="caseNo" required class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300 focus:ring-indigo-400">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Manual Case No.</label>
-                            <input type="text" id="manualCaseNo" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Institution Date</label>
-                            <input type="date" id="institutionDate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Address / Court</label>
-                            <input type="text" id="address" placeholder="Court / Location" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Case Type</label>
-                            <input type="text" id="caseType" placeholder="Civil/Criminal/Writ" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Act</label>
-                            <input type="text" id="act" placeholder="IPC, CrPC etc" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Case Purpose</label>
-                            <input type="text" id="casePurpose" placeholder="Hearing / Final Disposal" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Section</label>
-                            <input type="text" id="section" placeholder="Sec. 302, 138" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Appellant Name *</label>
-                            <input type="text" id="appellantName" required class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Respondent Name *</label>
-                            <input type="text" id="respondentName" required class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Hearing Date</label>
-                            <input type="date" id="hearingDate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div>
-                            <label class="block text-sm font-medium text-gray-700">Appellant Advocate</label>
-                            <input type="text" id="appellantAdvocate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
-                        <div class="md:col-span-2">
-                            <label class="block text-sm font-medium text-gray-700">Respondent Advocate</label>
-                            <input type="text" id="respondentAdvocate" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
-                        </div>
+                        <div><label class="block text-sm font-medium">Case No. *</label><input type="text" id="caseNo" required class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Manual Case No.</label><input type="text" id="manualCaseNo" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Institution Date</label><input type="date" id="institutionDate" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Address / Court</label><input type="text" id="address" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Case Type</label><input type="text" id="caseType" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Act</label><input type="text" id="act" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Case Purpose</label><input type="text" id="casePurpose" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Section</label><input type="text" id="section" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Appellant Name *</label><input type="text" id="appellantName" required class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Respondent Name *</label><input type="text" id="respondentName" required class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Hearing Date</label><input type="date" id="hearingDate" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div><label class="block text-sm font-medium">Appellant Advocate</label><input type="text" id="appellantAdvocate" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        <div class="md:col-span-2"><label class="block text-sm font-medium">Respondent Advocate</label><input type="text" id="respondentAdvocate" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
                     </div>
                     <div class="mt-8 flex justify-end gap-3 border-t pt-5">
-                        <button type="button" id="cancelModalBtn" class="px-5 py-2 bg-gray-200 rounded-lg hover:bg-gray-300">Cancel</button>
-                        <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700 transition"><i class="fas fa-save mr-1"></i> Save Case</button>
+                        <button type="button" id="cancelModalBtn" class="px-5 py-2 bg-gray-200 rounded-lg">Cancel</button>
+                        <button type="submit" class="px-6 py-2 bg-indigo-600 text-white rounded-lg shadow hover:bg-indigo-700">Save Case</button>
                     </div>
                 </form>
             </div>
@@ -156,101 +182,104 @@
     </div>
 
     <script>
-        // ---------- localStorage CRUD Operations ----------
-        const STORAGE_KEY = "case_diary_data";
-        
-        // Load cases from localStorage, initialize with sample if empty
+        // ---------- localStorage CRUD ----------
+        const STORAGE_KEY = "case_diary_pro";
+        let allCases = [];
+        let chartInstance = null;
+
         function loadCases() {
             const stored = localStorage.getItem(STORAGE_KEY);
-            if (stored) {
-                return JSON.parse(stored);
-            }
-            // Sample data to demonstrate functionality
-            const sampleCases = [
-                {
-                    id: Date.now() + 1,
-                    caseNo: "C-101/2024",
-                    manualCaseNo: "24/2024",
-                    institutionDate: "2024-01-15",
-                    address: "District Court, Delhi",
-                    caseType: "Civil",
-                    act: "Code of Civil Procedure",
-                    casePurpose: "Final Hearing",
-                    section: "Order 39",
-                    appellantName: "Suraj Singh",
-                    respondentName: "Ramesh Gupta",
-                    hearingDate: "2025-04-10",
-                    appellantAdvocate: "Adv. Mehta",
-                    respondentAdvocate: "Adv. Sharma"
-                },
-                {
-                    id: Date.now() + 2,
-                    caseNo: "C-202/2024",
-                    manualCaseNo: "45/2024",
-                    institutionDate: "2024-02-20",
-                    address: "High Court, Mumbai",
-                    caseType: "Criminal",
-                    act: "IPC",
-                    casePurpose: "Arguments",
-                    section: "302",
-                    appellantName: "State of Maharashtra",
-                    respondentName: "Akash Yadav",
-                    hearingDate: "2025-04-15",
-                    appellantAdvocate: "Public Prosecutor",
-                    respondentAdvocate: "Adv. Verma"
-                }
+            if (stored) return JSON.parse(stored);
+            const sample = [
+                { id: 1001, caseNo: "C-101/2024", manualCaseNo: "24/2024", institutionDate: "2024-01-15", address: "Delhi Court", caseType: "Civil", act: "CPC", casePurpose: "Hearing", section: "Order 39", appellantName: "Suraj Singh", respondentName: "Ramesh Gupta", hearingDate: "2025-04-10", appellantAdvocate: "Adv. Mehta", respondentAdvocate: "Adv. Sharma" },
+                { id: 1002, caseNo: "C-202/2024", manualCaseNo: "45/2024", institutionDate: "2024-02-20", address: "Mumbai HC", caseType: "Criminal", act: "IPC", casePurpose: "Arguments", section: "302", appellantName: "State", respondentName: "Akash Yadav", hearingDate: "2025-04-15", appellantAdvocate: "PP", respondentAdvocate: "Adv. Verma" }
             ];
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(sampleCases));
-            return sampleCases;
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(sample));
+            return sample;
         }
-
-        let allCases = loadCases();
-
-        function saveCases() {
-            localStorage.setItem(STORAGE_KEY, JSON.stringify(allCases));
-        }
+        function saveCases() { localStorage.setItem(STORAGE_KEY, JSON.stringify(allCases)); }
 
         // Helper functions
-        function formatDate(dateStr) {
-            if (!dateStr) return '';
-            const d = new Date(dateStr);
-            return d.toLocaleDateString('en-IN');
+        function formatDate(dateStr) { if(!dateStr) return ''; return new Date(dateStr).toLocaleDateString('en-IN'); }
+        function escapeHtml(str) { if(!str) return ''; return str.replace(/[&<>]/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;'}[m])); }
+
+        // Render table with filtering/search
+        let currentFilterDate = "";
+        let currentSearchTerm = "";
+
+        function getFilteredCases() {
+            let filtered = [...allCases];
+            if (currentFilterDate) filtered = filtered.filter(c => c.hearingDate === currentFilterDate);
+            if (currentSearchTerm.trim()) {
+                const term = currentSearchTerm.trim().toLowerCase();
+                filtered = filtered.filter(c => 
+                    (c.caseNo && c.caseNo.toLowerCase().includes(term)) ||
+                    (c.manualCaseNo && c.manualCaseNo.toLowerCase().includes(term)) ||
+                    (c.appellantName && c.appellantName.toLowerCase().includes(term)) ||
+                    (c.respondentName && c.respondentName.toLowerCase().includes(term)) ||
+                    (c.appellantAdvocate && c.appellantAdvocate.toLowerCase().includes(term)) ||
+                    (c.respondentAdvocate && c.respondentAdvocate.toLowerCase().includes(term)) ||
+                    (c.caseType && c.caseType.toLowerCase().includes(term))
+                );
+            }
+            return filtered;
         }
 
-        function escapeHtml(str) {
-            if (!str) return '';
-            return str.replace(/[&<>]/g, function(m) {
-                if (m === '&') return '&amp;';
-                if (m === '<') return '&lt;';
-                if (m === '>') return '&gt;';
-                return m;
-            });
-        }
-
-        // Render table with given array
-        function renderTable(casesArray) {
+        function renderTable() {
+            const filtered = getFilteredCases();
             const tbody = document.getElementById('casesTableBody');
-            if (!casesArray.length) {
-                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400"><i class="far fa-folder-open"></i> No cases found.</td></tr>`;
+            if (!filtered.length) {
+                tbody.innerHTML = `<tr><td colspan="7" class="text-center py-10 text-gray-400">No matching cases found.</td></tr>`;
                 return;
             }
-            tbody.innerHTML = casesArray.map(c => `
-                <tr class="hover:bg-gray-50 transition">
-                    <td class="px-4 py-3 whitespace-nowrap text-sm font-medium text-gray-900">${escapeHtml(c.caseNo || '-')}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHtml(c.manualCaseNo || '-')}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-600">${escapeHtml(c.caseType || '-')}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800 font-medium">${escapeHtml(c.appellantName || '-')}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm text-gray-800">${escapeHtml(c.respondentName || '-')}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-sm">${c.hearingDate ? formatDate(c.hearingDate) : '<span class="text-gray-400">Not set</span>'}</td>
-                    <td class="px-4 py-3 whitespace-nowrap text-center">
-                        <button onclick="editCase(${c.id})" class="text-indigo-600 hover:text-indigo-800 mr-3 transition" title="Edit"><i class="fas fa-edit"></i></button>
-                        <button onclick="deleteCase(${c.id})" class="text-red-500 hover:text-red-700 transition" title="Delete"><i class="fas fa-trash-alt"></i></button>
+            tbody.innerHTML = filtered.map(c => `
+                <tr class="hover:bg-gray-50">
+                    <td class="px-4 py-3 text-sm font-medium text-gray-900">${escapeHtml(c.caseNo)}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(c.manualCaseNo || '-')}</td>
+                    <td class="px-4 py-3 text-sm text-gray-600">${escapeHtml(c.caseType || '-')}</td>
+                    <td class="px-4 py-3 text-sm font-medium">${escapeHtml(c.appellantName)}</td>
+                    <td class="px-4 py-3 text-sm">${escapeHtml(c.respondentName)}</td>
+                    <td class="px-4 py-3 text-sm">${c.hearingDate ? formatDate(c.hearingDate) : '<span class="text-gray-400">Not set</span>'}</td>
+                    <td class="px-4 py-3 text-center">
+                        <button onclick="editCase(${c.id})" class="text-indigo-600 hover:text-indigo-800 mr-3"><i class="fas fa-edit"></i></button>
+                        <button onclick="deleteCase(${c.id})" class="text-red-500 hover:text-red-700"><i class="fas fa-trash-alt"></i></button>
                     </td>
                 </tr>
             `).join('');
         }
 
-        // Add / Update case
+        function updateDashboard() {
+            document.getElementById('totalCasesCount').innerText = allCases.length;
+            const today = new Date().toISOString().slice(0,10);
+            const pending = allCases.filter(c => c.hearingDate && c.hearingDate >= today).length;
+            document.getElementById('pendingHearingsCount').innerText = pending;
+            const uniqueTypes = new Set(allCases.map(c => c.caseType).filter(t => t));
+            document.getElementById('caseTypesCount').innerText = uniqueTypes.size;
+            const currentMonth = new Date().getMonth();
+            const currentYear = new Date().getFullYear();
+            const thisMonthNew = allCases.filter(c => {
+                if(!c.institutionDate) return false;
+                const d = new Date(c.institutionDate);
+                return d.getMonth() === currentMonth && d.getFullYear() === currentYear;
+            }).length;
+            document.getElementById('thisMonthNew').innerText = thisMonthNew;
+            updateChart();
+        }
+
+        function updateChart() {
+            const ctx = document.getElementById('caseTypeChart').getContext('2d');
+            const typeCount = {};
+            allCases.forEach(c => { if(c.caseType) typeCount[c.caseType] = (typeCount[c.caseType]||0)+1; });
+            const labels = Object.keys(typeCount);
+            const data = Object.values(typeCount);
+            if(chartInstance) chartInstance.destroy();
+            chartInstance = new Chart(ctx, {
+                type: 'doughnut',
+                data: { labels, datasets: [{ data, backgroundColor: ['#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6'], borderWidth: 0 }] },
+                options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
+            });
+        }
+
         function saveCaseFromForm() {
             const id = document.getElementById('caseId').value;
             const caseData = {
@@ -268,22 +297,12 @@
                 appellantAdvocate: document.getElementById('appellantAdvocate').value,
                 respondentAdvocate: document.getElementById('respondentAdvocate').value
             };
-            if (!caseData.caseNo || !caseData.appellantName || !caseData.respondentName) {
-                alert("Case No., Appellant Name & Respondent Name are mandatory!");
-                return false;
-            }
+            if (!caseData.caseNo || !caseData.appellantName || !caseData.respondentName) { alert("Mandatory fields missing"); return false; }
             if (id) {
-                // Update existing
-                const index = allCases.findIndex(c => c.id == id);
-                if (index !== -1) {
-                    caseData.id = parseInt(id);
-                    allCases[index] = caseData;
-                } else {
-                    alert("Case not found for update");
-                    return false;
-                }
+                const idx = allCases.findIndex(c => c.id == id);
+                if (idx !== -1) { caseData.id = parseInt(id); allCases[idx] = caseData; }
+                else return false;
             } else {
-                // Add new
                 caseData.id = Date.now();
                 allCases.push(caseData);
             }
@@ -291,144 +310,118 @@
             return true;
         }
 
-        // Delete case
         window.deleteCase = (id) => {
-            if (!confirm("Permanently delete this case? This action cannot be undone.")) return;
+            if(!confirm("Delete permanently?")) return;
             allCases = allCases.filter(c => c.id !== id);
             saveCases();
-            renderTable(allCases);
-            // If filter is active, re-apply filter after deletion
-            const filterDate = document.getElementById('filterHearingDate').value;
-            if (filterDate) {
-                const filtered = allCases.filter(c => c.hearingDate === filterDate);
-                renderTable(filtered);
-            } else {
-                renderTable(allCases);
-            }
+            renderTable();
+            updateDashboard();
         };
-
-        // Edit case
         window.editCase = (id) => {
-            const caseObj = allCases.find(c => c.id === id);
-            if (!caseObj) return;
-            document.getElementById('caseId').value = caseObj.id;
-            document.getElementById('caseNo').value = caseObj.caseNo || '';
-            document.getElementById('manualCaseNo').value = caseObj.manualCaseNo || '';
-            document.getElementById('institutionDate').value = caseObj.institutionDate || '';
-            document.getElementById('address').value = caseObj.address || '';
-            document.getElementById('caseType').value = caseObj.caseType || '';
-            document.getElementById('act').value = caseObj.act || '';
-            document.getElementById('casePurpose').value = caseObj.casePurpose || '';
-            document.getElementById('section').value = caseObj.section || '';
-            document.getElementById('appellantName').value = caseObj.appellantName || '';
-            document.getElementById('respondentName').value = caseObj.respondentName || '';
-            document.getElementById('hearingDate').value = caseObj.hearingDate || '';
-            document.getElementById('appellantAdvocate').value = caseObj.appellantAdvocate || '';
-            document.getElementById('respondentAdvocate').value = caseObj.respondentAdvocate || '';
-            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit mr-2 text-indigo-500"></i> Edit Case Details';
+            const c = allCases.find(c => c.id === id);
+            if(!c) return;
+            document.getElementById('caseId').value = c.id;
+            document.getElementById('caseNo').value = c.caseNo || '';
+            document.getElementById('manualCaseNo').value = c.manualCaseNo || '';
+            document.getElementById('institutionDate').value = c.institutionDate || '';
+            document.getElementById('address').value = c.address || '';
+            document.getElementById('caseType').value = c.caseType || '';
+            document.getElementById('act').value = c.act || '';
+            document.getElementById('casePurpose').value = c.casePurpose || '';
+            document.getElementById('section').value = c.section || '';
+            document.getElementById('appellantName').value = c.appellantName || '';
+            document.getElementById('respondentName').value = c.respondentName || '';
+            document.getElementById('hearingDate').value = c.hearingDate || '';
+            document.getElementById('appellantAdvocate').value = c.appellantAdvocate || '';
+            document.getElementById('respondentAdvocate').value = c.respondentAdvocate || '';
+            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-edit mr-2 text-indigo-500"></i> Edit Case';
             document.getElementById('caseModal').classList.remove('hidden');
         };
 
-        // Filter & render
-        function applyFilter() {
-            const selectedDate = document.getElementById('filterHearingDate').value;
-            if (!selectedDate) {
-                renderTable(allCases);
-            } else {
-                const filtered = allCases.filter(c => c.hearingDate === selectedDate);
-                renderTable(filtered);
-            }
+        function applyFilters() {
+            currentFilterDate = document.getElementById('filterHearingDate').value;
+            currentSearchTerm = document.getElementById('globalSearch').value;
+            renderTable();
+        }
+        function resetFilters() {
+            document.getElementById('filterHearingDate').value = '';
+            document.getElementById('globalSearch').value = '';
+            currentFilterDate = '';
+            currentSearchTerm = '';
+            renderTable();
         }
 
-        // PDF Export (based on currently displayed cases)
-        function generatePDF() {
-            const selectedDate = document.getElementById('filterHearingDate').value;
-            let casesToExport = [];
-            if (selectedDate) {
-                casesToExport = allCases.filter(c => c.hearingDate === selectedDate);
-            } else {
-                casesToExport = allCases;
-            }
-            if (casesToExport.length === 0) {
-                alert("No cases available for the selected hearing date or empty list.");
-                return;
-            }
+        // PDF Monthly Report
+        function generateMonthlyReport() {
+            const monthYear = document.getElementById('reportMonth').value;
+            if (!monthYear) { alert("Please select a month and year."); return; }
+            const [year, month] = monthYear.split('-');
+            const filtered = allCases.filter(c => {
+                if (!c.institutionDate) return false;
+                const d = new Date(c.institutionDate);
+                return d.getFullYear() == year && d.getMonth() == (parseInt(month)-1);
+            });
+            if (filtered.length === 0) { alert("No cases found for the selected month."); return; }
             const { jsPDF } = window.jspdf;
             const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
-            const title = selectedDate ? `Cause List - Hearing Date: ${new Date(selectedDate).toLocaleDateString('en-IN')}` : "Complete Cause List - All Cases";
-            doc.setFontSize(18);
-            doc.setTextColor(40, 55, 90);
-            doc.text("CASE DIARY MANAGEMENT SYSTEM", 14, 15);
-            doc.setFontSize(12);
-            doc.setTextColor(80, 80, 100);
-            doc.text(title, 14, 25);
-            doc.setFontSize(9);
-            doc.text(`Generated on: ${new Date().toLocaleString()} | Advocate Portfolio`, 14, 32);
-            
-            const headers = [["Case No", "Manual No", "Case Type", "Appellant", "Respondent", "Hearing Date", "App. Advocate", "Resp. Advocate", "Purpose/Section"]];
-            const rows = casesToExport.map(c => [
-                c.caseNo || '-', c.manualCaseNo || '-', c.caseType || '-', c.appellantName || '-',
-                c.respondentName || '-', c.hearingDate ? formatDate(c.hearingDate) : '-', 
-                c.appellantAdvocate || '-', c.respondentAdvocate || '-', 
-                `${c.casePurpose || ''} ${c.section ? `[Sec ${c.section}]` : ''}`.trim() || '-'
+            const monthName = new Date(year, month-1).toLocaleString('default', { month: 'long' });
+            doc.setFontSize(16);
+            doc.text(`Monthly Case Report - ${monthName} ${year}`, 14, 15);
+            doc.setFontSize(10);
+            doc.text(`Generated on: ${new Date().toLocaleString()}`, 14, 23);
+            const headers = [["Case No", "Manual No", "Case Type", "Appellant", "Respondent", "Institution Date", "Hearing Date", "Advocates"]];
+            const rows = filtered.map(c => [
+                c.caseNo, c.manualCaseNo || '-', c.caseType || '-', c.appellantName, c.respondentName,
+                c.institutionDate ? formatDate(c.institutionDate) : '-', c.hearingDate ? formatDate(c.hearingDate) : '-',
+                `${c.appellantAdvocate || ''} / ${c.respondentAdvocate || ''}`
             ]);
-            doc.autoTable({
-                head: headers,
-                body: rows,
-                startY: 38,
-                theme: 'striped',
-                headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
-                columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 25 }, 2: { cellWidth: 25 }, 3: { cellWidth: 30 }, 4: { cellWidth: 30 }, 5: { cellWidth: 25 }, 6: { cellWidth: 30 }, 7: { cellWidth: 30 }, 8: { cellWidth: 35 } },
-                margin: { left: 10, right: 10 },
-                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' }
-            });
-            doc.save(`Cause_List_${selectedDate || 'All_Cases'}.pdf`);
+            doc.autoTable({ head: headers, body: rows, startY: 30, theme: 'striped', headStyles: { fillColor: [79,70,229] } });
+            doc.save(`Monthly_Report_${year}_${month}.pdf`);
+        }
+
+        // Export to CSV
+        function exportToCSV() {
+            let casesToExport = allCases;
+            const headers = ["Case No", "Manual Case No", "Institution Date", "Address", "Case Type", "Act", "Case Purpose", "Section", "Appellant Name", "Respondent Name", "Hearing Date", "Appellant Advocate", "Respondent Advocate"];
+            const rows = casesToExport.map(c => [
+                c.caseNo, c.manualCaseNo, c.institutionDate, c.address, c.caseType, c.act, c.casePurpose, c.section,
+                c.appellantName, c.respondentName, c.hearingDate, c.appellantAdvocate, c.respondentAdvocate
+            ]);
+            const csvContent = [headers, ...rows].map(row => row.map(cell => `"${String(cell).replace(/"/g, '""')}"`).join(",")).join("\n");
+            const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
+            const link = document.createElement("a");
+            const url = URL.createObjectURL(blob);
+            link.href = url;
+            link.setAttribute("download", "all_cases_export.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+            URL.revokeObjectURL(url);
         }
 
         // Modal handlers
-        function openAddModal() {
-            document.getElementById('caseForm').reset();
-            document.getElementById('caseId').value = '';
-            document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle mr-2 text-indigo-500"></i> Register New Case';
-            document.getElementById('caseModal').classList.remove('hidden');
-        }
-        function closeModal() {
-            document.getElementById('caseModal').classList.add('hidden');
-        }
+        function openAddModal() { document.getElementById('caseForm').reset(); document.getElementById('caseId').value = ''; document.getElementById('modalTitle').innerHTML = '<i class="fas fa-plus-circle mr-2 text-indigo-500"></i> Register New Case'; document.getElementById('caseModal').classList.remove('hidden'); }
+        function closeModal() { document.getElementById('caseModal').classList.add('hidden'); }
+
+        // Initialization
+        allCases = loadCases();
+        renderTable();
+        updateDashboard();
 
         // Event listeners
         document.getElementById('openAddModalBtn').addEventListener('click', openAddModal);
         document.getElementById('closeModalBtn').addEventListener('click', closeModal);
         document.getElementById('cancelModalBtn').addEventListener('click', closeModal);
-        document.getElementById('applyFilterBtn').addEventListener('click', applyFilter);
-        document.getElementById('resetFilterBtn').addEventListener('click', () => {
-            document.getElementById('filterHearingDate').value = '';
-            renderTable(allCases);
-        });
-        document.getElementById('exportPdfBtn').addEventListener('click', generatePDF);
+        document.getElementById('applyFilterBtn').addEventListener('click', applyFilters);
+        document.getElementById('resetFilterBtn').addEventListener('click', resetFilters);
+        document.getElementById('generateMonthlyReportBtn').addEventListener('click', generateMonthlyReport);
+        document.getElementById('exportExcelBtn').addEventListener('click', exportToCSV);
         document.getElementById('caseForm').addEventListener('submit', (e) => {
             e.preventDefault();
-            if (saveCaseFromForm()) {
-                closeModal();
-                // Re-render respecting current filter
-                const filterDate = document.getElementById('filterHearingDate').value;
-                if (filterDate) {
-                    const filtered = allCases.filter(c => c.hearingDate === filterDate);
-                    renderTable(filtered);
-                } else {
-                    renderTable(allCases);
-                }
-            }
+            if(saveCaseFromForm()) { closeModal(); renderTable(); updateDashboard(); }
         });
-
-        // Click outside modal to close
-        window.addEventListener('click', (e) => {
-            const modal = document.getElementById('caseModal');
-            if (e.target === modal) closeModal();
-        });
-
-        // Initial render
-        renderTable(allCases);
+        document.getElementById('globalSearch').addEventListener('input', applyFilters);
+        window.addEventListener('click', (e) => { if(e.target === document.getElementById('caseModal')) closeModal(); });
     </script>
 </body>
 </html>
