@@ -92,19 +92,19 @@
                 <canvas id="caseTypeChart" height="200"></canvas>
             </div>
             <div class="bg-white rounded-2xl shadow p-4">
-                <h3 class="text-lg font-semibold mb-3">Monthly Report</h3>
+                <h3 class="text-lg font-semibold mb-3">Reports</h3>
                 <div class="space-y-3">
                     <div>
                         <label class="block text-sm font-medium text-gray-700">Select Month & Year</label>
                         <input type="month" id="reportMonth" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
                     </div>
-                    <button id="generateMonthlyReportBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> Download Monthly Report (PDF)</button>
+                    <button id="generateMonthlyReportBtn" class="w-full bg-purple-600 hover:bg-purple-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"><i class="fas fa-file-pdf"></i> Monthly Report (PDF)</button>
                     <button id="exportExcelBtn" class="w-full bg-green-600 hover:bg-green-700 text-white py-2 rounded-lg flex items-center justify-center gap-2"><i class="fas fa-file-excel"></i> Export All Cases (CSV)</button>
                 </div>
             </div>
         </div>
 
-        <!-- Search + Filter Row -->
+        <!-- Search + Filter Row with Cause List PDF Button -->
         <div class="bg-white rounded-2xl shadow-sm border border-gray-100 p-5 mb-6">
             <div class="flex flex-wrap gap-3 items-end">
                 <div class="flex-1 min-w-[200px]">
@@ -121,7 +121,11 @@
                 <div>
                     <button id="resetFilterBtn" class="bg-gray-200 hover:bg-gray-300 text-gray-800 px-4 py-2.5 rounded-xl"><i class="fas fa-undo-alt"></i> Reset</button>
                 </div>
+                <div>
+                    <button id="causeListPdfBtn" class="bg-red-600 hover:bg-red-700 text-white px-5 py-2.5 rounded-xl shadow flex items-center gap-2"><i class="fas fa-file-pdf"></i> Cause List PDF</button>
+                </div>
             </div>
+            <p class="text-xs text-slate-400 mt-3"><i class="fas fa-info-circle"></i> Select a hearing date and click "Cause List PDF" to download the cause list for that date.</p>
         </div>
 
         <!-- Cases Table -->
@@ -147,7 +151,7 @@
         </div>
     </div>
 
-    <!-- MODAL: Add/Edit Case -->
+    <!-- MODAL: Add/Edit Case (Updated: Case Type as dropdown with Dawa & Prarthna Patra) -->
     <div id="caseModal" class="fixed inset-0 bg-black/40 backdrop-blur-sm flex items-center justify-center z-50 modal-transition hidden">
         <div class="bg-white rounded-2xl w-full max-w-4xl mx-4 max-h-[90vh] overflow-y-auto shadow-2xl">
             <div class="sticky top-0 bg-white border-b px-6 py-4 flex justify-between items-center">
@@ -162,7 +166,22 @@
                         <div><label class="block text-sm font-medium">Manual Case No.</label><input type="text" id="manualCaseNo" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
                         <div><label class="block text-sm font-medium">Institution Date</label><input type="date" id="institutionDate" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
                         <div><label class="block text-sm font-medium">Address / Court</label><input type="text" id="address" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
-                        <div><label class="block text-sm font-medium">Case Type</label><input type="text" id="caseType" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
+                        
+                        <!-- Case Type: Dropdown with Dawa & Prarthna Patra -->
+                        <div>
+                            <label class="block text-sm font-medium">Case Type</label>
+                            <select id="caseType" class="mt-1 w-full border rounded-lg px-3 py-2 border-gray-300">
+                                <option value="">Select Case Type</option>
+                                <option value="Civil">Civil</option>
+                                <option value="Criminal">Criminal</option>
+                                <option value="Dawa">Dawa</option>
+                                <option value="Prarthna Patra">Prarthna Patra</option>
+                                <option value="Writ">Writ</option>
+                                <option value="Revenue">Revenue</option>
+                                <option value="Other">Other</option>
+                            </select>
+                        </div>
+                        
                         <div><label class="block text-sm font-medium">Act</label><input type="text" id="act" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
                         <div><label class="block text-sm font-medium">Case Purpose</label><input type="text" id="casePurpose" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
                         <div><label class="block text-sm font-medium">Section</label><input type="text" id="section" class="mt-1 w-full border rounded-lg px-3 py-2"></div>
@@ -275,7 +294,7 @@
             if(chartInstance) chartInstance.destroy();
             chartInstance = new Chart(ctx, {
                 type: 'doughnut',
-                data: { labels, datasets: [{ data, backgroundColor: ['#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6'], borderWidth: 0 }] },
+                data: { labels, datasets: [{ data, backgroundColor: ['#4f46e5','#10b981','#f59e0b','#ef4444','#8b5cf6','#06b6d4','#a855f7'], borderWidth: 0 }] },
                 options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { position: 'bottom' } } }
             });
         }
@@ -297,7 +316,7 @@
                 appellantAdvocate: document.getElementById('appellantAdvocate').value,
                 respondentAdvocate: document.getElementById('respondentAdvocate').value
             };
-            if (!caseData.caseNo || !caseData.appellantName || !caseData.respondentName) { alert("Mandatory fields missing"); return false; }
+            if (!caseData.caseNo || !caseData.appellantName || !caseData.respondentName) { alert("Case No., Appellant Name & Respondent Name are mandatory!"); return false; }
             if (id) {
                 const idx = allCases.findIndex(c => c.id == id);
                 if (idx !== -1) { caseData.id = parseInt(id); allCases[idx] = caseData; }
@@ -351,7 +370,49 @@
             renderTable();
         }
 
-        // PDF Monthly Report
+        // PDF: Cause List by Hearing Date
+        function generateCauseListPDF() {
+            const selectedDate = document.getElementById('filterHearingDate').value;
+            if (!selectedDate) {
+                alert("Please select a hearing date to generate the cause list.");
+                return;
+            }
+            const casesForDate = allCases.filter(c => c.hearingDate === selectedDate);
+            if (casesForDate.length === 0) {
+                alert("No cases found for the selected hearing date.");
+                return;
+            }
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
+            doc.setFontSize(18);
+            doc.setTextColor(40, 55, 90);
+            doc.text("CAUSE LIST", 14, 15);
+            doc.setFontSize(12);
+            doc.setTextColor(80, 80, 100);
+            doc.text(`Hearing Date: ${new Date(selectedDate).toLocaleDateString('en-IN')}`, 14, 25);
+            doc.setFontSize(9);
+            doc.text(`Generated on: ${new Date().toLocaleString()} | Advocate Portfolio`, 14, 32);
+            
+            const headers = [["Case No", "Manual No", "Case Type", "Appellant", "Respondent", "App. Advocate", "Resp. Advocate", "Purpose / Section"]];
+            const rows = casesForDate.map(c => [
+                c.caseNo || '-', c.manualCaseNo || '-', c.caseType || '-', c.appellantName || '-',
+                c.respondentName || '-', c.appellantAdvocate || '-', c.respondentAdvocate || '-',
+                `${c.casePurpose || ''} ${c.section ? `[Sec ${c.section}]` : ''}`.trim() || '-'
+            ]);
+            doc.autoTable({
+                head: headers,
+                body: rows,
+                startY: 38,
+                theme: 'striped',
+                headStyles: { fillColor: [79, 70, 229], textColor: 255, fontStyle: 'bold', halign: 'center' },
+                columnStyles: { 0: { cellWidth: 28 }, 1: { cellWidth: 25 }, 2: { cellWidth: 25 }, 3: { cellWidth: 30 }, 4: { cellWidth: 30 }, 5: { cellWidth: 30 }, 6: { cellWidth: 30 }, 7: { cellWidth: 35 } },
+                margin: { left: 10, right: 10 },
+                styles: { fontSize: 8, cellPadding: 2, overflow: 'linebreak' }
+            });
+            doc.save(`Cause_List_${selectedDate}.pdf`);
+        }
+
+        // Monthly Report PDF
         function generateMonthlyReport() {
             const monthYear = document.getElementById('reportMonth').value;
             if (!monthYear) { alert("Please select a month and year."); return; }
@@ -416,6 +477,7 @@
         document.getElementById('resetFilterBtn').addEventListener('click', resetFilters);
         document.getElementById('generateMonthlyReportBtn').addEventListener('click', generateMonthlyReport);
         document.getElementById('exportExcelBtn').addEventListener('click', exportToCSV);
+        document.getElementById('causeListPdfBtn').addEventListener('click', generateCauseListPDF);
         document.getElementById('caseForm').addEventListener('submit', (e) => {
             e.preventDefault();
             if(saveCaseFromForm()) { closeModal(); renderTable(); updateDashboard(); }
